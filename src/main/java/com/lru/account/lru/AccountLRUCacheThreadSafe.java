@@ -3,9 +3,11 @@ package com.lru.account.lru;
 import com.lru.account.Account;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
@@ -17,12 +19,14 @@ public class AccountLRUCacheThreadSafe implements Cache<Long, Account> {
     private final DoublyLinkedList<Account> doublyLinkedList;
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final AtomicInteger hits = new AtomicInteger(0);
+    private final ConcurrentSkipListMap<BigDecimal, Long> tops;
     private Consumer<Account> listener;
 
     public AccountLRUCacheThreadSafe(int size) {
         this.size = size;
         this.linkedListNodeMap = new ConcurrentHashMap<>(size);
         this.doublyLinkedList = new DoublyLinkedList<>();
+        this.tops = new ConcurrentSkipListMap<>(BigDecimal::compareTo);
     }
 
     @Override
@@ -46,6 +50,7 @@ public class AccountLRUCacheThreadSafe implements Cache<Long, Account> {
             if (newNode.isEmpty()) {
                 return false;
             }
+            this.tops.put(value.getBalance(), value.getId());
             this.linkedListNodeMap.put(key, newNode);
             return true;
         } finally {
@@ -60,6 +65,7 @@ public class AccountLRUCacheThreadSafe implements Cache<Long, Account> {
             LinkedListNode<Account> linkedListNode = this.linkedListNodeMap.get(key);
             if (linkedListNode != null && !linkedListNode.isEmpty()) {
                 hits.incrementAndGet();
+                tops.put(linkedListNode.getElement().getBalance(), key);
                 linkedListNodeMap.put(key, this.doublyLinkedList.moveToFront(linkedListNode));
                 return Optional.of(linkedListNode.getElement());
             }
@@ -89,6 +95,7 @@ public class AccountLRUCacheThreadSafe implements Cache<Long, Account> {
         this.lock.writeLock().lock();
         try {
             linkedListNodeMap.clear();
+            tops.clear();
             doublyLinkedList.clear();
         } finally {
             this.lock.writeLock().unlock();
@@ -113,6 +120,7 @@ public class AccountLRUCacheThreadSafe implements Cache<Long, Account> {
                 return;
             }
             linkedListNodeMap.remove(linkedListNode.getElement().getId());
+            tops.remove(linkedListNode.getElement().getBalance(), linkedListNode.getElement().getId());
         } finally {
             this.lock.writeLock().unlock();
         }
