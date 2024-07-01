@@ -1,10 +1,8 @@
 package com.lru.account;
 
 import com.lru.account.lru.AccountLRUCacheThreadSafe;
-import com.lru.account.lru.LinkedListNode;
 import lombok.Getter;
 
-import java.math.BigDecimal;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -31,11 +29,10 @@ public class AccountCacheImpl implements AccountCache {
     public List<Account> getTop3AccountsByBalance() {
         int max = 3;
         int init = 0;
-        Iterator<Map.Entry<BigDecimal, Long>> iterator = lruCache.getTops().entrySet().iterator();
-        Map<Long, LinkedListNode<Account>> linkedListNodeMap = lruCache.getLinkedListNodeMap();
+        Iterator<Map.Entry<Account, Long>> iterator = lruCache.getTops().entrySet().iterator();
         List<Account> result = new ArrayList<>();
         while (iterator.hasNext() && init < max) {
-            result.add(linkedListNodeMap.get(iterator.next().getValue()).getElement());
+            result.add(iterator.next().getKey());
             init++;
         }
         return result;

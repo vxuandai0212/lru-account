@@ -3,7 +3,7 @@ package com.lru.account.lru;
 import com.lru.account.Account;
 import lombok.Getter;
 
-import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,14 +19,14 @@ public class AccountLRUCacheThreadSafe implements Cache<Long, Account> {
     private final DoublyLinkedList<Account> doublyLinkedList;
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final AtomicInteger hits = new AtomicInteger(0);
-    private final ConcurrentSkipListMap<BigDecimal, Long> tops;
+    private final ConcurrentSkipListMap<Account, Long> tops;
     private Consumer<Account> listener;
 
     public AccountLRUCacheThreadSafe(int size) {
         this.size = size;
         this.linkedListNodeMap = new ConcurrentHashMap<>(size);
         this.doublyLinkedList = new DoublyLinkedList<>();
-        this.tops = new ConcurrentSkipListMap<>(BigDecimal::compareTo);
+        this.tops = new ConcurrentSkipListMap<>(Comparator.comparing(Account::getBalance));
     }
 
     @Override
@@ -38,6 +38,8 @@ public class AccountLRUCacheThreadSafe implements Cache<Long, Account> {
                 LinkedListNode<Account> node = this.linkedListNodeMap.get(key);
                 if (node.getElement().getBalance().compareTo(value.getBalance()) != 0) {
                     listener.accept(value);
+                    this.tops.remove(node.getElement());
+                    this.tops.put(value, value.getId());
                 }
                 newNode = doublyLinkedList.updateAndMoveToFront(node, value);
             } else {
@@ -45,12 +47,12 @@ public class AccountLRUCacheThreadSafe implements Cache<Long, Account> {
                     this.evictElement();
                 }
                 listener.accept(value);
+                this.tops.put(value, value.getId());
                 newNode = this.doublyLinkedList.add(value);
             }
             if (newNode.isEmpty()) {
                 return false;
             }
-            this.tops.put(value.getBalance(), value.getId());
             this.linkedListNodeMap.put(key, newNode);
             return true;
         } finally {
@@ -65,7 +67,6 @@ public class AccountLRUCacheThreadSafe implements Cache<Long, Account> {
             LinkedListNode<Account> linkedListNode = this.linkedListNodeMap.get(key);
             if (linkedListNode != null && !linkedListNode.isEmpty()) {
                 hits.incrementAndGet();
-                tops.put(linkedListNode.getElement().getBalance(), key);
                 linkedListNodeMap.put(key, this.doublyLinkedList.moveToFront(linkedListNode));
                 return Optional.of(linkedListNode.getElement());
             }
@@ -120,7 +121,7 @@ public class AccountLRUCacheThreadSafe implements Cache<Long, Account> {
                 return;
             }
             linkedListNodeMap.remove(linkedListNode.getElement().getId());
-            tops.remove(linkedListNode.getElement().getBalance(), linkedListNode.getElement().getId());
+            tops.remove(linkedListNode.getElement());
         } finally {
             this.lock.writeLock().unlock();
         }

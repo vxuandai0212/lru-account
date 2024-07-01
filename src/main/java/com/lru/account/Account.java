@@ -9,6 +9,6 @@ import java.math.BigDecimal;
 @ToString
 @Builder
 public class Account {
-    private Long id;
-    private BigDecimal balance;
+    private volatile Long id;
+    private volatile BigDecimal balance;
 }
