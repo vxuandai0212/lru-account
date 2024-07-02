@@ -21,21 +21,17 @@ class AccountApplicationTests {
 
     @Test
     void runMultiThreadTask_WhenPutDataInConcurrentToCache_ThenNoDataLost() throws Exception {
-        final int size = 50;
+        final int size = 500000;
         Cache<Long, Account> cache;
-        try (ExecutorService executorService = Executors.newFixedThreadPool(5)) {
+        try (ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())) {
             cache = new AccountLRUCacheThreadSafe(size);
             cache.delegateListener(account -> log.info("Listener: {}", account.toString()));
             CountDownLatch countDownLatch = new CountDownLatch(size);
-            try {
-                IntStream.range(0, size).<Runnable>mapToObj(key -> () -> {
-                    cache.put((long) key, Account.builder().id((long) key).balance(BigDecimal.valueOf(key)).build());
-                    countDownLatch.countDown();
-                }).forEach(executorService::submit);
-                countDownLatch.await();
-            } finally {
-                executorService.shutdown();
-            }
+            IntStream.range(0, size).<Runnable>mapToObj(key -> () -> {
+                cache.put((long) key, Account.builder().id((long) key).balance(BigDecimal.valueOf(key)).build());
+                countDownLatch.countDown();
+            }).forEach(executorService::submit);
+            countDownLatch.await();
         }
         assertEquals(cache.size(), size);
         IntStream.range(0, size).forEach(i -> assertEquals(BigDecimal.valueOf(i), cache.get((long) i).get().getBalance()));
