@@ -66,24 +66,45 @@ class AccountApplicationTests {
             .balance(BigDecimal.valueOf(5))
             .build();
 
+        Account E1 = Account.builder()
+            .id(5L)
+            .balance(BigDecimal.valueOf(515))
+            .build();
+
+        Account E2 = Account.builder()
+            .id(6L)
+            .balance(BigDecimal.valueOf(556))
+            .build();
+
+        Account E3 = Account.builder()
+            .id(7L)
+            .balance(BigDecimal.valueOf(570))
+            .build();
+
         Account F = Account.builder()
-            .id(1L)
+            .id(8L)
             .balance(BigDecimal.valueOf(60))
             .build();
 
-        AccountCache service = new AccountCacheImpl(2);
+        AccountCache service = new AccountCacheImpl(5);
         service.subscribeForAccountUpdates(consumer);
         service.putAccount(A);
         service.putAccount(B);
+        service.putAccount(E1);
+        service.putAccount(E2);
+        service.putAccount(E3);
         assertEquals(0, service.getAccountByIdHitCount());
-        assertTrue(service.getTop3AccountsByBalance().stream().map(Account::getId).toList().containsAll(List.of(1L, 2L)));
+        service.getLruCache().getLinkedListNodeMap().values().forEach(e-> log.info(e.getElement().toString()));
+        assertTrue(service.getTop3AccountsByBalance().stream().map(Account::getId).toList().containsAll(List.of(5L, 6L, 7L)));
         service.putAccount(C);
         service.getAccountById(B.getId());
         service.putAccount(D);
-        assertTrue(service.getTop3AccountsByBalance().stream().map(Account::getId).toList().containsAll(List.of(4L, 2L)));
+        service.getLruCache().getLinkedListNodeMap().values().forEach(e-> log.info(e.getElement().toString()));
+        assertTrue(service.getTop3AccountsByBalance().stream().map(Account::getId).toList().containsAll(List.of(4L, 6L, 7L)));
         service.putAccount(E);
         service.putAccount(F);
-        assertTrue(service.getTop3AccountsByBalance().stream().map(Account::getId).toList().containsAll(List.of(1L, 5L)));
+        service.getLruCache().getLinkedListNodeMap().values().forEach(e-> log.info(e.getElement().toString()));
+        assertTrue(service.getTop3AccountsByBalance().stream().map(Account::getId).toList().containsAll(List.of(8L, 3L, 8L)));
         assertEquals(1, service.getAccountByIdHitCount());
     }
 

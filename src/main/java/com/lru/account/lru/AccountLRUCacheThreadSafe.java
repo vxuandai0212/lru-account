@@ -26,7 +26,7 @@ public class AccountLRUCacheThreadSafe implements Cache<Long, Account> {
         this.size = size;
         this.linkedListNodeMap = new ConcurrentHashMap<>(size);
         this.doublyLinkedList = new DoublyLinkedList<>();
-        this.tops = new ConcurrentSkipListMap<>(Comparator.comparing(Account::getBalance));
+        this.tops = new ConcurrentSkipListMap<>(Comparator.comparing(Account::getBalance).reversed());
     }
 
     @Override
