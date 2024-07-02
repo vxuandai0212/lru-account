@@ -67,7 +67,7 @@ public class AccountLRUCacheThreadSafe implements Cache<Long, Account> {
             LinkedListNode<Account> linkedListNode = this.linkedListNodeMap.get(key);
             if (linkedListNode != null && !linkedListNode.isEmpty()) {
                 hits.incrementAndGet();
-                linkedListNodeMap.put(key, this.doublyLinkedList.moveToFront(linkedListNode));
+                this.doublyLinkedList.moveToFront(linkedListNode);
                 return Optional.of(linkedListNode.getElement());
             }
             return Optional.empty();
